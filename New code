@@ -1,0 +1,127 @@
+import os
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
+from torchvision import datasets, transforms
+from torch.utils.data import DataLoader
+from sklearn.metrics import classification_report, confusion_matrix
+from google.colab import drive
+from PIL import ImageFile
+
+# Allow loading of truncated images
+ImageFile.LOAD_TRUNCATED_IMAGES = True
+
+# Mount Google Drive
+drive.mount('/content/drive')
+
+# Define directory paths
+train_dir = '/content/drive/MyDrive/Colab Notebooks/Bone_Fracture_Binary_Classification/train'
+val_dir = '/content/drive/MyDrive/Colab Notebooks/Bone_Fracture_Binary_Classification/val'
+test_dir = '/content/drive/MyDrive/Colab Notebooks/Bone_Fracture_Binary_Classification/test'
+
+# Data points (training examples)
+BATCH_SIZE = 128
+
+# Data transformations
+data_transforms = {
+    'train': transforms.Compose([
+        transforms.ToTensor(),
+        transforms.CenterCrop(400),
+        transforms.RandomHorizontalFlip(),
+        transforms.Grayscale(num_output_channels=1)
+    ]),
+    'val': transforms.Compose([
+        transforms.ToTensor(),
+        transforms.CenterCrop(400),
+        transforms.Grayscale(num_output_channels=1)
+    ])
+}
+
+# Create datasets
+train_dataset = datasets.ImageFolder(root=train_dir, transform=data_transforms['train'])
+val_dataset = datasets.ImageFolder(root=val_dir, transform=data_transforms['val'])
+test_dataset = datasets.ImageFolder(root=test_dir, transform=data_transforms['val'])
+
+# Create data loaders
+train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
+val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False)
+test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
+
+# Check the size of the datasets
+print(f"Number of training samples: {len(train_dataset)}")
+print(f"Number of validation samples: {len(val_dataset)}")
+print(f"Number of test samples: {len(test_dataset)}")
+
+classes = os.listdir(train_dir)
+print(f"Classes found: {len(classes)}")
+print(classes)
+
+# Custom CNN model definition
+class CustomCNN(nn.Module):
+    def __init__(self):
+        super(CustomCNN, self).__init__()
+        self.conv_layers = nn.Sequential(
+            nn.Conv2d(1, 32, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2, 2),
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2, 2),
+            nn.Conv2d(64, 128, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2, 2)
+        )
+        self.fc1 = nn.Linear(128 * 50 * 50, 256)  # Adjust based on image size after pooling
+        self.fc2 = nn.Linear(256, 1)  # Binary classification
+
+    def forward(self, x):
+        x = self.conv_layers(x)
+        x = x.view(x.size(0), -1)  # Flatten the tensor
+        x = F.relu(self.fc1(x))
+        x = torch.sigmoid(self.fc2(x))  # Use sigmoid for binary classification
+        return x
+    
+    # Set device
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# Instantiate the model, define loss function and optimizer
+model = CustomCNN().to(device)
+criterion = nn.BCELoss()  # For binary classification
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+
+# Training loop
+def train_model(model, train_loader, val_loader, criterion, optimizer, num_epochs=10):
+    for epoch in range(num_epochs):
+        model.train()
+        running_loss = 0.0
+
+        for images, labels in train_loader:
+            images, labels = images.to(device), labels.float().to(device)
+            optimizer.zero_grad()
+            outputs = model(images)
+            loss = criterion(outputs.view(-1), labels)
+            loss.backward()
+            optimizer.step()
+            running_loss += loss.item()
+
+        # Validation phase
+        model.eval()
+        val_loss = 0.0
+        with torch.no_grad():
+            for images, labels in val_loader:
+                images, labels = images.to(device), labels.float().to(device)
+                outputs = model(images)
+                loss = criterion(outputs.view(-1), labels)
+                val_loss += loss.item()
+
+        print(f"Epoch [{epoch + 1}/{num_epochs}], "
+              f"Train Loss: {running_loss/len(train_loader):.4f}, "
+              f"Val Loss: {val_loss/len(val_loader):.4f}")
+
+# Train the model
+train_model(model, train_loader, val_loader, criterion, optimizer, num_epochs=10)
+
