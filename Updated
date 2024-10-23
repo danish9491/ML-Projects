@@ -8,18 +8,14 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
-from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.metrics import classification_report, confusion_matrix, roc_auc_score
 from google.colab import drive
 from PIL import ImageFile
 
-# # Mount Google Drive to access datasets
+# Mount Google Drive (optional)
 # drive.mount('/content/drive')
 
-# # Define dataset directories
-# train_dir = '/content/drive/MyDrive/Colab Notebooks/Bone_Fracture_Binary_Classification/train'
-# val_dir = '/content/drive/MyDrive/Colab Notebooks/Bone_Fracture_Binary_Classification/val'
-# test_dir = '/content/drive/MyDrive/Colab Notebooks/Bone_Fracture_Binary_Classification/test'
-# Define directory paths
+# Define dataset directories
 train_dir = r"D:\College Notes\5th Sem\CS307 Machine Learning 4\Bone_Fracture_Binary_Classification\train"
 val_dir = r"D:\College Notes\5th Sem\CS307 Machine Learning 4\Bone_Fracture_Binary_Classification\val"
 test_dir = r"D:\College Notes\5th Sem\CS307 Machine Learning 4\Bone_Fracture_Binary_Classification\test"
@@ -27,18 +23,20 @@ test_dir = r"D:\College Notes\5th Sem\CS307 Machine Learning 4\Bone_Fracture_Bin
 # Allow loading of truncated images
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
-# Define transformations for training and validation datasets
+# Enhanced data augmentation for training and validation
 data_transforms = {
     'train': transforms.Compose([
         transforms.Resize((224, 224)),  # Resize images to 224x224
-        transforms.RandomHorizontalFlip(),  # Randomly flip images for augmentation
+        transforms.RandomHorizontalFlip(),  # Random horizontal flip for augmentation
+        transforms.RandomRotation(10),  # Randomly rotate images by 10 degrees
+        transforms.RandomResizedCrop(224, scale=(0.8, 1.0)),  # Random zoom
         transforms.ToTensor(),  # Convert PIL images to tensors
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # Normalize
     ]),
     'val': transforms.Compose([
-        transforms.Resize((224, 224)),  # Resize images to 224x224
-        transforms.ToTensor(),  # Convert PIL images to tensors
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # Normalize
+        transforms.Resize((224, 224)),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ]),
 }
 
@@ -53,36 +51,41 @@ train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
 val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False)
 test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
 
-# Display the sizes of the datasets
+# Display dataset sizes and class names
 print(f"Number of training samples: {len(train_dataset)}")
 print(f"Number of validation samples: {len(val_dataset)}")
 print(f"Number of test samples: {len(test_dataset)}")
 
-# Check classes in the training dataset
 classes = os.listdir(train_dir)
 print(f"Classes found: {len(classes)}")
 print(classes)
 
-# Define the Custom CNN architecture
+# Enhanced Custom CNN architecture with Batch Normalization and Dropout
 class CustomCNN(nn.Module):
     def __init__(self):
         super(CustomCNN, self).__init__()
-        # Define convolutional layers
-        self.conv1 = nn.Conv2d(3, 32, kernel_size=3, padding=1)  # RGB input
+        # Define convolutional layers with batch normalization
+        self.conv1 = nn.Conv2d(3, 32, kernel_size=3, padding=1)  # Input: RGB image
+        self.bn1 = nn.BatchNorm2d(32)
         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
+        self.bn2 = nn.BatchNorm2d(64)
         self.conv3 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
-        self.pool = nn.MaxPool2d(2, 2)
+        self.bn3 = nn.BatchNorm2d(128)
+        self.pool = nn.MaxPool2d(2, 2)  # Max pooling layer
+        
         # Fully connected layers
         self.fc1 = nn.Linear(128 * 28 * 28, 256)  # Adjust based on image size after pooling
+        self.dropout = nn.Dropout(0.5)  # Dropout for regularization
         self.fc2 = nn.Linear(256, 1)  # Binary classification output
 
     def forward(self, x):
-        # Forward pass through convolutional layers and pooling
-        x = self.pool(F.relu(self.conv1(x)))
-        x = self.pool(F.relu(self.conv2(x)))
-        x = self.pool(F.relu(self.conv3(x)))
-        x = x.view(-1, 128 * 28 * 28)  # Flatten the tensor
-        x = F.relu(self.fc1(x))  # Activation for first fully connected layer
+        # Forward pass through convolutional layers with batch normalization and pooling
+        x = self.pool(F.relu(self.bn1(self.conv1(x))))
+        x = self.pool(F.relu(self.bn2(self.conv2(x))))
+        x = self.pool(F.relu(self.bn3(self.conv3(x))))
+        x = x.view(-1, 128 * 28 * 28)  # Flatten the tensor for the fully connected layers
+        x = F.relu(self.fc1(x))  # First fully connected layer with ReLU activation
+        x = self.dropout(x)  # Apply dropout
         x = torch.sigmoid(self.fc2(x))  # Sigmoid activation for binary classification
         return x
 
@@ -94,10 +97,11 @@ model = CustomCNN().to(device)
 
 # Define the loss function and optimizer
 criterion = nn.BCELoss()  # For binary classification
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001)  # Learning rate can be tuned
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001)  # Adam optimizer
+scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1)  # Learning rate scheduler
 
-# Training loop function
-def train_model(model, train_loader, val_loader, criterion, optimizer, num_epochs=10):
+# Training loop function with learning rate scheduling
+def train_model(model, train_loader, val_loader, criterion, optimizer, scheduler, num_epochs=10):
     for epoch in range(num_epochs):
         model.train()  # Set the model to training mode
         running_loss = 0.0
@@ -112,6 +116,9 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, num_epoch
             optimizer.step()  # Update weights
             running_loss += loss.item()  # Accumulate loss
 
+        # Adjust learning rate
+        scheduler.step()
+
         # Validation phase
         model.eval()  # Set the model to evaluation mode
         val_loss = 0.0
@@ -124,19 +131,19 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, num_epoch
 
         # Print epoch results
         print(f"Epoch [{epoch + 1}/{num_epochs}], "
-              f"Train Loss: {running_loss/len(train_loader):.4f}, "
-              f"Val Loss: {val_loss/len(val_loader):.4f}")
+              f"Train Loss: {running_loss / len(train_loader):.4f}, "
+              f"Val Loss: {val_loss / len(val_loader):.4f}")
 
 # Train the model
-train_model(model, train_loader, val_loader, criterion, optimizer, num_epochs=10)
+train_model(model, train_loader, val_loader, criterion, optimizer, scheduler, num_epochs=10)
 
-# Optional: Evaluate the model on the test set and print classification report
+# Function to evaluate the model on the test set and calculate metrics
 def evaluate_model(model, test_loader):
-    model.eval()
+    model.eval()  # Set the model to evaluation mode
     all_preds = []
     all_labels = []
 
-    with torch.no_grad():
+    with torch.no_grad():  # Disable gradient calculation
         for images, labels in test_loader:
             images = images.to(device)
             outputs = model(images)
@@ -144,7 +151,17 @@ def evaluate_model(model, test_loader):
             all_preds.extend(preds.cpu().numpy())
             all_labels.extend(labels.numpy())
 
+    # Classification report
     print(classification_report(all_labels, all_preds, target_names=classes))
+
+    # Confusion Matrix
+    cm = confusion_matrix(all_labels, all_preds)
+    print("Confusion Matrix:")
+    print(cm)
+
+    # AUC-ROC Score
+    auc_score = roc_auc_score(all_labels, all_preds)
+    print(f"AUC-ROC Score: {auc_score:.4f}")
 
 # Evaluate the model
 evaluate_model(model, test_loader)
