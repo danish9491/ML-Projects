@@ -12,13 +12,17 @@ from sklearn.metrics import classification_report, confusion_matrix
 from google.colab import drive
 from PIL import ImageFile
 
-# Mount Google Drive to access datasets
-drive.mount('/content/drive')
+# # Mount Google Drive to access datasets
+# drive.mount('/content/drive')
 
-# Define dataset directories
-train_dir = '/content/drive/MyDrive/Colab Notebooks/Bone_Fracture_Binary_Classification/train'
-val_dir = '/content/drive/MyDrive/Colab Notebooks/Bone_Fracture_Binary_Classification/val'
-test_dir = '/content/drive/MyDrive/Colab Notebooks/Bone_Fracture_Binary_Classification/test'
+# # Define dataset directories
+# train_dir = '/content/drive/MyDrive/Colab Notebooks/Bone_Fracture_Binary_Classification/train'
+# val_dir = '/content/drive/MyDrive/Colab Notebooks/Bone_Fracture_Binary_Classification/val'
+# test_dir = '/content/drive/MyDrive/Colab Notebooks/Bone_Fracture_Binary_Classification/test'
+# Define directory paths
+train_dir = r"D:\College Notes\5th Sem\CS307 Machine Learning 4\Bone_Fracture_Binary_Classification\train"
+val_dir = r"D:\College Notes\5th Sem\CS307 Machine Learning 4\Bone_Fracture_Binary_Classification\val"
+test_dir = r"D:\College Notes\5th Sem\CS307 Machine Learning 4\Bone_Fracture_Binary_Classification\test"
 
 # Allow loading of truncated images
 ImageFile.LOAD_TRUNCATED_IMAGES = True
