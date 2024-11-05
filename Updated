@@ -9,7 +9,7 @@ import torch.optim as optim
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 from sklearn.metrics import classification_report, confusion_matrix, roc_auc_score
-from google.colab import drive
+# from google.colab import drive
 from PIL import ImageFile
 
 # Mount Google Drive (optional)
