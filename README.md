@@ -10,6 +10,12 @@ Welcome to my collection of Machine Learning projects! In this repository, I wil
    - **Technologies Used**: Python, PyTorch, scikit-learn, Matplotlib
    - **Results**: Achieved **89% accuracy** on the test set, with solid performance on both fractured and non-fractured categories.
 
+### 2. **[Upcoming Project Name]**
+   - **Description**: A brief overview of what the project aims to solve or demonstrate.
+   - **Key Features**: Main highlights or insights from the project.
+   - **Technologies Used**: Python, Scikit-learn, TensorFlow, etc.
+   - **Results**: Briefly explain any outcomes or findings.
+
 > _Each project will have a dedicated directory with more specific instructions, datasets, and requirements. Check the individual project README files for details._
 
 ---
@@ -18,7 +24,7 @@ Welcome to my collection of Machine Learning projects! In this repository, I wil
 
 1. **Clone this repository** to your local machine:
     ```bash
-    git clone https://github.com/your-username/ML-Projects.git
+    git clone https://github.com/danish9491/ML-Projects.git
     ```
 
 2. **Navigate** to the project folder you want to explore:
@@ -71,7 +77,9 @@ For any questions or inquiries, feel free to reach out to me:
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)  
 [![Python Version](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/)  
-[![Build Status](https://img.shields.io/travis/your-username/ML-Projects.svg?style=flat)](https://travis-ci.org/your-username/ML-Projects)
+
+<!-- If you use CI/CD in the future, you can uncomment the following line to show build status -->
+<!-- [![Build Status](https://img.shields.io/travis/your-username/ML-Projects.svg?style=flat)](https://travis-ci.org/your-username/ML-Projects) -->
 
 ---
 
